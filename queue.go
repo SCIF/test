@@ -54,17 +54,14 @@ func (queue *QueueImplementation) sendIfRequired() {
 	processed := queue.batchProcessor.Process(batch)
 
 	for index, value := range processed {
-		queue.jobResults[index].content = value
-		// queue.jobResults[index].isReadyBool = true
-		// queue.jobResults[index].isReady <- true
-		close(queue.jobResults[index].isReady)
+		queue.jobResults[index].setContent(value)
 	}
 
 	queue.jobResults = make([]JobResultItem, 0)
 }
 
 func (queue *QueueImplementation) Process(job *Job) JobResult {
-	newJobResult := &JobResultItem{job: job, isReady: make(chan bool, 1), isReadyBool: false}
+	newJobResult := &JobResultItem{job: job, isReady: make(chan struct{}, 1)}
 	queue.jobResults = append(queue.jobResults, *newJobResult)
 
 	queue.sendIfRequired()

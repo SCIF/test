@@ -3,7 +3,6 @@ package testqueue
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -36,10 +35,9 @@ func TestDoNotProcessUntilFullQueue(t *testing.T) {
 
 	job3 := &Job{Id: 3}
 	result3 := queue.Process(job3)
-	time.Sleep(10)
 	assert.Equal(t, 3, len(processor.jobs))
-	assert.Same(t, result3.Job(), job3)
-	assert.Equal(t, "", result3.Content())
 	assert.True(t, result1.Ready())
-	// assert.Equal(t, "response: 1", result1.Content())
+	assert.Same(t, result3.Job(), job3)
+	assert.True(t, result3.Ready())
+	assert.Equal(t, "response: 3", result3.Content())
 }
