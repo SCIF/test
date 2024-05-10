@@ -22,24 +22,27 @@ type QueueImplementation struct {
 	batchCollectionTime time.Duration
 	batchProcessor      BatchProcessor
 	jobResults          []*JobResultItem
-	// addingChannel       chan []Job
-	mutex sync.Mutex
+	flushCancel         chan struct{}
+	mutex               sync.Mutex
 }
 
-// func (queue QueueImplementation) addJob(newJob chan []Job) JobResult {
-// 	tick := time.Tick(100 * time.Millisecond)
-// 	for {
-// 		select {
-// 		case <-tick:
-// 			fmt.Println("tick.")
-// 		case <-newJob:
+func (queue *QueueImplementation) scheduleFlush() {
+	for {
+		select {
+		case <-queue.flushCancel:
+			return
+		case <-time.After(queue.batchCollectionTime):
+			queue.mutex.Lock()
+			queue.mutex.Unlock()
+			if 0 < len(queue.jobResults) {
+				go queue.sendBatch(queue.jobResults)
+				queue.jobResults = make([]*JobResultItem, 0)
+			}
 
-// 		default:
-// 			fmt.Println("    .")
-// 			time.Sleep(50 * time.Millisecond)
-// 		}
-// 	}
-// }
+			return
+		}
+	}
+}
 
 func (queue *QueueImplementation) sendBatch(resultsBatch []*JobResultItem) {
 	batch := make([]Job, 0)
@@ -62,10 +65,15 @@ func (queue *QueueImplementation) Process(job Job) JobResult {
 	defer queue.mutex.Unlock()
 
 	queue.jobResults = append(queue.jobResults, newJobResult)
+	batchLength := len(queue.jobResults)
 
-	if queue.maxBatchSize == len(queue.jobResults) {
+	if queue.maxBatchSize == batchLength {
+		close(queue.flushCancel)
 		go queue.sendBatch(queue.jobResults)
 		queue.jobResults = make([]*JobResultItem, 0)
+	} else if batchLength == 1 {
+		queue.flushCancel = make(chan struct{})
+		go queue.scheduleFlush()
 	}
 
 	return newJobResult
