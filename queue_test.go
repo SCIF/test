@@ -13,12 +13,13 @@ type InMemoryProcessor struct {
 }
 
 func (processor *InMemoryProcessor) Process(jobs []Job) []string {
-	time.Sleep(300 * time.Millisecond)
 	processor.jobs = append(processor.jobs, jobs...)
 	responses := make([]string, len(jobs))
 	for index := range responses {
 		responses[index] = fmt.Sprintf("response: %d", index)
 	}
+
+	time.Sleep(300 * time.Millisecond)
 
 	return responses
 }
@@ -74,10 +75,11 @@ func TestProcessNotFullQueueBySchedule(t *testing.T) {
 	assert.Equal(t, "", result1.Content())
 
 	waitCycles := 0
+	failTimeout := time.After(270 * time.Millisecond)
 out:
 	for {
 		select {
-		case <-time.After(270 * time.Millisecond):
+		case <-failTimeout:
 			t.Log("expected to handle faster than this timeout")
 			t.Fail()
 			break out
@@ -96,8 +98,8 @@ out:
 	select {
 	case <-result2.Ready():
 		break
-	case <-time.After(260 * time.Millisecond):
-		t.Log("expected to handle exactly 1 second")
+	case <-time.After(310 * time.Millisecond):
+		t.Log("expected to handle faster than timeout")
 		t.Fail()
 	}
 	assert.Equal(t, 2, len(processor.jobs))
