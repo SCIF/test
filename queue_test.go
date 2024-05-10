@@ -14,7 +14,7 @@ type InMemoryProcessor struct {
 func (processor *InMemoryProcessor) Process(jobs []Job) []string {
 	processor.jobs = append(processor.jobs, jobs...)
 	responses := make([]string, len(jobs))
-	for index, _ := range responses {
+	for index := range responses {
 		responses[index] = fmt.Sprintf("response: %d", index)
 	}
 
