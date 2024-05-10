@@ -33,7 +33,7 @@ func (queue *QueueImplementation) scheduleFlush() {
 			return
 		case <-time.After(queue.batchCollectionTime):
 			queue.mutex.Lock()
-			queue.mutex.Unlock()
+			defer queue.mutex.Unlock()
 			if 0 < len(queue.jobResults) {
 				go queue.sendBatch(queue.jobResults)
 				queue.jobResults = make([]*JobResultItem, 0)
