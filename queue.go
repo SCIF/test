@@ -59,17 +59,16 @@ func (queue *QueueImplementation) Process(job Job) JobResult {
 	newJobResult := &JobResultItem{job: job, isReady: make(chan struct{}, 1)}
 
 	queue.mutex.Lock()
+	defer queue.mutex.Unlock()
+
+	queue.jobResults = append(queue.jobResults, newJobResult)
 
 	var resultsStored []*JobResultItem
 
-	if (queue.maxBatchSize - 1) == len(queue.jobResults) {
-		resultsStored = append(queue.jobResults, newJobResult)
+	if queue.maxBatchSize == len(queue.jobResults) {
+		resultsStored = queue.jobResults
 		queue.jobResults = make([]*JobResultItem, 0)
-	} else {
-		queue.jobResults = append(queue.jobResults, newJobResult)
 	}
-
-	queue.mutex.Unlock()
 
 	if nil != resultsStored {
 		go queue.sendBatch(resultsStored)
