@@ -1,6 +1,7 @@
 package testqueue
 
 import (
+	"sync"
 	"time"
 )
 
@@ -13,7 +14,7 @@ type BatchProcessor interface {
 }
 
 type Queue interface {
-	Process(*Job) JobResult
+	Process(Job) JobResult
 }
 
 type QueueImplementation struct {
@@ -22,7 +23,7 @@ type QueueImplementation struct {
 	batchProcessor      BatchProcessor
 	jobResults          []*JobResultItem
 	// addingChannel       chan []Job
-	// mutex               sync.Mutex
+	mutex sync.Mutex
 }
 
 // func (queue QueueImplementation) addJob(newJob chan []Job) JobResult {
@@ -43,24 +44,32 @@ type QueueImplementation struct {
 func (queue *QueueImplementation) sendBatch() {
 	batch := make([]Job, 0)
 
-	for _, result := range queue.jobResults {
-		batch = append(batch, *result.job)
+	queue.mutex.Lock()
+
+	resultsStored := queue.jobResults
+	queue.jobResults = make([]*JobResultItem, 0)
+
+	queue.mutex.Unlock()
+
+	for _, result := range resultsStored {
+		batch = append(batch, result.job)
 	}
 
 	processed := queue.batchProcessor.Process(batch)
 
 	for index, value := range processed {
-		queue.jobResults[index].setContent(value)
+		resultsStored[index].setContent(value)
 	}
-
-	queue.jobResults = make([]*JobResultItem, 0)
 }
 
-func (queue *QueueImplementation) Process(job *Job) JobResult {
+func (queue *QueueImplementation) Process(job Job) JobResult {
 	newJobResult := &JobResultItem{job: job, isReady: make(chan struct{}, 1)}
+	queue.mutex.Lock()
 	queue.jobResults = append(queue.jobResults, newJobResult)
+	jobBatchLength := len(queue.jobResults)
+	queue.mutex.Unlock()
 
-	if queue.maxBatchSize == len(queue.jobResults) {
+	if queue.maxBatchSize == jobBatchLength {
 		go queue.sendBatch()
 	}
 

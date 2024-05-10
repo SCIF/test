@@ -5,11 +5,11 @@ import "sync"
 type JobResult interface {
 	Ready() chan struct{}
 	Content() string
-	Job() *Job
+	Job() Job
 }
 
 type JobResultItem struct {
-	job     *Job
+	job     Job
 	content string
 	isReady chan struct{}
 	mutex   sync.Mutex
@@ -33,7 +33,6 @@ func (item *JobResultItem) setContent(response string) {
 	close(item.isReady)
 }
 
-// debug
-func (item *JobResultItem) Job() *Job {
+func (item *JobResultItem) Job() Job {
 	return item.job
 }

@@ -27,17 +27,17 @@ func TestDoNotProcessUntilFullQueue(t *testing.T) {
 	processor := &InMemoryProcessor{jobs: make([]Job, 0)}
 	queue := CreateQueue(3, 250, processor)
 
-	job1 := &Job{Id: 1}
+	job1 := Job{Id: 1}
 	result1 := queue.Process(job1)
-	assert.Same(t, result1.Job(), job1)
+	assert.Equal(t, result1.Job(), job1)
 	assert.True(t, isChannelOpen(result1.Ready()))
 	assert.Equal(t, "", result1.Content())
 
-	queue.Process(&Job{Id: 2})
+	queue.Process(Job{Id: 2})
 	assert.Equal(t, 0, len(processor.jobs))
 	assert.True(t, isChannelOpen(result1.Ready()))
 
-	job3 := &Job{Id: 3}
+	job3 := Job{Id: 3}
 	result3 := queue.Process(job3)
 
 	select {
@@ -48,7 +48,7 @@ func TestDoNotProcessUntilFullQueue(t *testing.T) {
 		t.Fail()
 	}
 	assert.Equal(t, 3, len(processor.jobs))
-	assert.Same(t, result3.Job(), job3)
+	assert.Equal(t, result3.Job(), job3)
 
 	assert.Equal(t, "response: 0", result1.Content())
 	assert.Equal(t, "response: 2", result3.Content())
