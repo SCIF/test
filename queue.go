@@ -40,11 +40,7 @@ type QueueImplementation struct {
 // 	}
 // }
 
-func (queue *QueueImplementation) sendIfRequired() {
-	if queue.maxBatchSize != len(queue.jobResults) {
-		return
-	}
-
+func (queue *QueueImplementation) sendBatch() {
 	batch := make([]Job, 0)
 
 	for _, result := range queue.jobResults {
@@ -64,7 +60,9 @@ func (queue *QueueImplementation) Process(job *Job) JobResult {
 	newJobResult := &JobResultItem{job: job, isReady: make(chan struct{}, 1)}
 	queue.jobResults = append(queue.jobResults, newJobResult)
 
-	queue.sendIfRequired()
+	if queue.maxBatchSize == len(queue.jobResults) {
+		go queue.sendBatch()
+	}
 
 	return newJobResult
 }

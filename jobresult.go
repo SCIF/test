@@ -3,7 +3,7 @@ package testqueue
 import "sync"
 
 type JobResult interface {
-	Ready() bool
+	Ready() chan struct{}
 	Content() string
 	Job() *Job
 }
@@ -15,13 +15,8 @@ type JobResultItem struct {
 	mutex   sync.Mutex
 }
 
-func (item *JobResultItem) Ready() bool {
-	select {
-	case <-item.isReady:
-		return true
-	default:
-		return false
-	}
+func (item *JobResultItem) Ready() chan struct{} {
+	return item.isReady
 }
 
 func (item *JobResultItem) Content() string {
