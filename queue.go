@@ -41,36 +41,38 @@ type QueueImplementation struct {
 // 	}
 // }
 
-func (queue *QueueImplementation) sendBatch() {
+func (queue *QueueImplementation) sendBatch(resultsBatch []*JobResultItem) {
 	batch := make([]Job, 0)
 
-	queue.mutex.Lock()
-
-	resultsStored := queue.jobResults
-	queue.jobResults = make([]*JobResultItem, 0)
-
-	queue.mutex.Unlock()
-
-	for _, result := range resultsStored {
+	for _, result := range resultsBatch {
 		batch = append(batch, result.job)
 	}
 
 	processed := queue.batchProcessor.Process(batch)
 
 	for index, value := range processed {
-		resultsStored[index].setContent(value)
+		resultsBatch[index].setContent(value)
 	}
 }
 
 func (queue *QueueImplementation) Process(job Job) JobResult {
 	newJobResult := &JobResultItem{job: job, isReady: make(chan struct{}, 1)}
+
 	queue.mutex.Lock()
-	queue.jobResults = append(queue.jobResults, newJobResult)
-	jobBatchLength := len(queue.jobResults)
+
+	var resultsStored []*JobResultItem
+
+	if (queue.maxBatchSize - 1) == len(queue.jobResults) {
+		resultsStored = append(queue.jobResults, newJobResult)
+		queue.jobResults = make([]*JobResultItem, 0)
+	} else {
+		queue.jobResults = append(queue.jobResults, newJobResult)
+	}
+
 	queue.mutex.Unlock()
 
-	if queue.maxBatchSize == jobBatchLength {
-		go queue.sendBatch()
+	if nil != resultsStored {
+		go queue.sendBatch(resultsStored)
 	}
 
 	return newJobResult
