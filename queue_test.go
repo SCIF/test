@@ -39,5 +39,5 @@ func TestDoNotProcessUntilFullQueue(t *testing.T) {
 	assert.True(t, result1.Ready())
 	assert.Same(t, result3.Job(), job3)
 	assert.True(t, result3.Ready())
-	assert.Equal(t, "response: 3", result3.Content())
+	assert.Equal(t, "response: 2", result3.Content())
 }

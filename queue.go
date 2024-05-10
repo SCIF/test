@@ -20,7 +20,7 @@ type QueueImplementation struct {
 	maxBatchSize        int
 	batchCollectionTime time.Duration
 	batchProcessor      BatchProcessor
-	jobResults          []JobResultItem
+	jobResults          []*JobResultItem
 	// addingChannel       chan []Job
 	// mutex               sync.Mutex
 }
@@ -57,12 +57,12 @@ func (queue *QueueImplementation) sendIfRequired() {
 		queue.jobResults[index].setContent(value)
 	}
 
-	queue.jobResults = make([]JobResultItem, 0)
+	queue.jobResults = make([]*JobResultItem, 0)
 }
 
 func (queue *QueueImplementation) Process(job *Job) JobResult {
 	newJobResult := &JobResultItem{job: job, isReady: make(chan struct{}, 1)}
-	queue.jobResults = append(queue.jobResults, *newJobResult)
+	queue.jobResults = append(queue.jobResults, newJobResult)
 
 	queue.sendIfRequired()
 
