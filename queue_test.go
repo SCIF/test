@@ -9,7 +9,8 @@ import (
 )
 
 type InMemoryProcessor struct {
-	jobs []Job
+	jobs           []Job
+	processingTime time.Duration
 }
 
 func (processor *InMemoryProcessor) Process(jobs []Job) []string {
@@ -19,63 +20,66 @@ func (processor *InMemoryProcessor) Process(jobs []Job) []string {
 		responses[index] = fmt.Sprintf("response: %d", index)
 	}
 
-	time.Sleep(300 * time.Millisecond)
+	time.Sleep(processor.processingTime)
 
 	return responses
 }
 
 func TestDoNotProcessUntilFullQueue(t *testing.T) {
-	processor := &InMemoryProcessor{jobs: make([]Job, 0)}
+	processor := &InMemoryProcessor{jobs: make([]Job, 0), processingTime: 100 * time.Millisecond}
 	queue := CreateQueue(3, 2*time.Second, processor)
 
 	job1 := Job{Id: 1}
 	result1 := queue.Process(job1)
+
 	assert.Equal(t, result1.Job(), job1)
-	assert.True(t, isChannelOpen(result1.Ready()))
-	assert.Equal(t, "", result1.Content())
+	assertJobResultIsNotHandledYet(t, result1)
 
-	queue.Process(Job{Id: 2})
-	assert.Equal(t, 0, len(processor.jobs))
-	assert.True(t, isChannelOpen(result1.Ready()))
+	result2 := queue.Process(Job{Id: 2})
 
-	job3 := Job{Id: 3}
-	result3 := queue.Process(job3)
+	assertJobResultIsNotHandledYet(t, result1)
+	assertJobResultIsNotHandledYet(t, result2)
+
+	result3 := queue.Process(Job{Id: 3})
+
+	// all jobs must be sent immediately to processor. allow 1ms just for make sure goroutine is executed
+	time.Sleep(time.Millisecond)
+	assert.Equal(t, 3, len(processor.jobs))
 
 	select {
+	// check readyness channel works and reacts
 	case <-result3.Ready():
 		break
-	case <-time.After(310 * time.Millisecond):
-		t.Log("expected to handle exactly 300 ms")
+	case <-time.After(110 * time.Millisecond):
+		t.Log("expected to be handle within the processor processingTime")
 		t.Fail()
 	}
-	assert.Equal(t, 3, len(processor.jobs))
-	assert.Equal(t, result3.Job(), job3)
 
+	// once ready, check the content is in place
 	assert.Equal(t, "response: 0", result1.Content())
+	assert.Equal(t, "response: 1", result2.Content())
 	assert.Equal(t, "response: 2", result3.Content())
 }
 
 func TestProcessNotFullQueueBySchedule(t *testing.T) {
-	processor := &InMemoryProcessor{jobs: make([]Job, 0)}
+	processor := &InMemoryProcessor{jobs: make([]Job, 0), processingTime: 300 * time.Millisecond}
 	queue := CreateQueue(3, 250*time.Millisecond, processor)
 
 	job1 := Job{Id: 1}
 	result1 := queue.Process(job1)
 	assert.Equal(t, result1.Job(), job1)
-	assert.True(t, isChannelOpen(result1.Ready()))
-	assert.Equal(t, "", result1.Content())
+	assertJobResultIsNotHandledYet(t, result1)
 
-	job2 := Job{Id: 2}
-	result2 := queue.Process(job2)
+	result2 := queue.Process(Job{Id: 2})
+
+	// make sure nothing is sent to the processor yet
 	assert.Equal(t, 0, len(processor.jobs))
-	assert.Equal(t, result2.Job(), job2)
-	assert.True(t, isChannelOpen(result1.Ready()))
-	assert.True(t, isChannelOpen(result2.Ready()))
-	assert.Equal(t, "", result1.Content())
-	assert.Equal(t, "", result1.Content())
+	assertJobResultIsNotHandledYet(t, result1)
+	assertJobResultIsNotHandledYet(t, result2)
 
+	// make sure queue delay is met
 	waitCycles := 0
-	failTimeout := time.After(270 * time.Millisecond)
+	failTimeout := time.After(260 * time.Millisecond) // high boundary check
 out:
 	for {
 		select {
@@ -93,6 +97,7 @@ out:
 	}
 
 	assert.Equal(t, 5, waitCycles)
+	// check messages sent
 	assert.Equal(t, 2, len(processor.jobs))
 
 	select {
@@ -102,7 +107,6 @@ out:
 		t.Log("expected to handle faster than timeout")
 		t.Fail()
 	}
-	assert.Equal(t, 2, len(processor.jobs))
 
 	assert.Equal(t, "response: 0", result1.Content())
 	assert.Equal(t, "response: 1", result2.Content())
@@ -115,4 +119,9 @@ func isChannelOpen(channel chan struct{}) bool {
 	default:
 		return true
 	}
+}
+
+func assertJobResultIsNotHandledYet(t *testing.T, result JobResult) {
+	assert.True(t, isChannelOpen(result.Ready()))
+	assert.Equal(t, "", result.Content())
 }
