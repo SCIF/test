@@ -29,6 +29,7 @@ func (item *JobResultItem) Content() string {
 func (item *JobResultItem) setContent(response string) {
 	item.mutex.Lock()
 	defer item.mutex.Unlock()
+
 	item.content = response
 	close(item.isReady)
 }
