@@ -5,28 +5,31 @@ import (
 	"time"
 )
 
+// Sample of the job. Real-world example would have a payload as well as Id
 type Job struct {
 	Id int
 }
 
+// External dependency handling jobs in batches
 type BatchProcessor interface {
 	Process([]Job) []string
 }
 
+// Queue having ability to aggregate jobs prior to send to BatchProcessor
 type Queue interface {
 	Process(Job) JobResult
 }
 
-type QueueImplementation struct {
+type queueImplementation struct {
 	maxBatchSize        int
 	batchCollectionTime time.Duration
 	batchProcessor      BatchProcessor
-	jobResults          []*JobResultItem
+	jobResults          []*jobResultItem
 	flushCancel         chan struct{}
 	mutex               sync.Mutex
 }
 
-func (queue *QueueImplementation) scheduleFlush() {
+func (queue *queueImplementation) scheduleFlush() {
 	for {
 		select {
 		case <-queue.flushCancel:
@@ -36,7 +39,7 @@ func (queue *QueueImplementation) scheduleFlush() {
 			defer queue.mutex.Unlock()
 			if 0 < len(queue.jobResults) {
 				go queue.sendBatch(queue.jobResults)
-				queue.jobResults = make([]*JobResultItem, 0)
+				queue.jobResults = make([]*jobResultItem, 0)
 			}
 
 			return
@@ -44,7 +47,7 @@ func (queue *QueueImplementation) scheduleFlush() {
 	}
 }
 
-func (queue *QueueImplementation) sendBatch(resultsBatch []*JobResultItem) {
+func (queue *queueImplementation) sendBatch(resultsBatch []*jobResultItem) {
 	batch := make([]Job, 0)
 
 	for _, result := range resultsBatch {
@@ -58,8 +61,8 @@ func (queue *QueueImplementation) sendBatch(resultsBatch []*JobResultItem) {
 	}
 }
 
-func (queue *QueueImplementation) Process(job Job) JobResult {
-	newJobResult := &JobResultItem{job: job, isReady: make(chan struct{})}
+func (queue *queueImplementation) Process(job Job) JobResult {
+	newJobResult := &jobResultItem{job: job, isReady: make(chan struct{})}
 
 	queue.mutex.Lock()
 	defer queue.mutex.Unlock()
@@ -70,7 +73,7 @@ func (queue *QueueImplementation) Process(job Job) JobResult {
 	if queue.maxBatchSize == batchLength {
 		close(queue.flushCancel)
 		go queue.sendBatch(queue.jobResults)
-		queue.jobResults = make([]*JobResultItem, 0)
+		queue.jobResults = make([]*jobResultItem, 0)
 	} else if batchLength == 1 {
 		queue.flushCancel = make(chan struct{})
 		go queue.scheduleFlush()
@@ -79,8 +82,8 @@ func (queue *QueueImplementation) Process(job Job) JobResult {
 	return newJobResult
 }
 
-func CreateQueue(maxBatchSize int, batchCollectionTime time.Duration, processor BatchProcessor) Queue {
-	return &QueueImplementation{
+func NewQueue(maxBatchSize int, batchCollectionTime time.Duration, processor BatchProcessor) Queue {
+	return &queueImplementation{
 		maxBatchSize:        maxBatchSize,
 		batchCollectionTime: batchCollectionTime,
 		batchProcessor:      processor,

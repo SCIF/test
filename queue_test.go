@@ -27,7 +27,7 @@ func (processor *InMemoryProcessor) Process(jobs []Job) []string {
 
 func TestDoNotProcessUntilFullQueue(t *testing.T) {
 	processor := &InMemoryProcessor{jobs: make([]Job, 0), processingTime: 100 * time.Millisecond}
-	queue := CreateQueue(3, 2*time.Second, processor)
+	queue := NewQueue(3, 2*time.Second, processor)
 
 	job1 := Job{Id: 1}
 	result1 := queue.Process(job1)
@@ -63,7 +63,7 @@ func TestDoNotProcessUntilFullQueue(t *testing.T) {
 
 func TestProcessNotFullQueueBySchedule(t *testing.T) {
 	processor := &InMemoryProcessor{jobs: make([]Job, 0), processingTime: 300 * time.Millisecond}
-	queue := CreateQueue(3, 250*time.Millisecond, processor)
+	queue := NewQueue(3, 250*time.Millisecond, processor)
 
 	job1 := Job{Id: 1}
 	result1 := queue.Process(job1)
@@ -100,6 +100,7 @@ out:
 	// check messages sent
 	assert.Equal(t, 2, len(processor.jobs))
 
+	// check message result is resolved once batchProcessor returned result
 	select {
 	case <-result2.Ready():
 		break
