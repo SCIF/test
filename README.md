@@ -7,4 +7,4 @@ In order to instantiate a queue you need to invoke `CreateQueue()` factory funct
 
 ### Job and JobResult
 
-Both types are very generic and having the purpose to demonstate the idea rather than to make production ready solution. The proper payload of each of them depends on business requirements
+Both types are very generic and having the purpose to demonstate the idea rather than to make production ready solution. The proper payload of each of them depends on business requirements.

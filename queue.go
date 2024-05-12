@@ -6,8 +6,8 @@ import (
 )
 
 // Sample of the job. Real-world example would have a payload as well as Id
-type Job struct {
-	Id int
+type Job interface {
+	Id() int
 }
 
 // External dependency handling jobs in batches

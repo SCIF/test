@@ -8,6 +8,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type jobImplementation struct {
+	id int
+}
+
+func (job jobImplementation) Id() int {
+	return job.id
+}
+
 type InMemoryProcessor struct {
 	jobs           []Job
 	processingTime time.Duration
@@ -29,18 +37,18 @@ func TestDoNotProcessUntilFullQueue(t *testing.T) {
 	processor := &InMemoryProcessor{jobs: make([]Job, 0), processingTime: 100 * time.Millisecond}
 	queue := NewQueue(3, 2*time.Second, processor)
 
-	job1 := Job{Id: 1}
+	job1 := jobImplementation{id: 1}
 	result1 := queue.Process(job1)
 
 	assert.Equal(t, result1.Job(), job1)
 	assertJobResultIsNotHandledYet(t, result1)
 
-	result2 := queue.Process(Job{Id: 2})
+	result2 := queue.Process(jobImplementation{id: 2})
 
 	assertJobResultIsNotHandledYet(t, result1)
 	assertJobResultIsNotHandledYet(t, result2)
 
-	result3 := queue.Process(Job{Id: 3})
+	result3 := queue.Process(jobImplementation{id: 3})
 
 	// all jobs must be sent immediately to processor. allow 1ms just for make sure goroutine is executed
 	time.Sleep(time.Millisecond)
@@ -65,12 +73,12 @@ func TestProcessNotFullQueueBySchedule(t *testing.T) {
 	processor := &InMemoryProcessor{jobs: make([]Job, 0), processingTime: 300 * time.Millisecond}
 	queue := NewQueue(3, 250*time.Millisecond, processor)
 
-	job1 := Job{Id: 1}
+	job1 := jobImplementation{id: 1}
 	result1 := queue.Process(job1)
 	assert.Equal(t, result1.Job(), job1)
 	assertJobResultIsNotHandledYet(t, result1)
 
-	result2 := queue.Process(Job{Id: 2})
+	result2 := queue.Process(jobImplementation{id: 2})
 
 	// make sure nothing is sent to the processor yet
 	assert.Equal(t, 0, len(processor.jobs))
@@ -113,7 +121,7 @@ out:
 	assert.Equal(t, "response: 1", result2.Content())
 }
 
-func isChannelOpen(channel chan struct{}) bool {
+func isChannelOpen(channel <-chan struct{}) bool {
 	select {
 	case <-channel:
 		return false

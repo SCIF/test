@@ -6,7 +6,7 @@ import "sync"
 // The copy of original Job is stored in order to simplify matching job and result.
 // Real-world example most likely would use typed payload rather than just string of the response
 type JobResult interface {
-	Ready() chan struct{}
+	Ready() <-chan struct{}
 	Content() string
 	Job() Job
 }
@@ -18,7 +18,7 @@ type jobResultItem struct {
 	mutex   sync.Mutex
 }
 
-func (item *jobResultItem) Ready() chan struct{} {
+func (item *jobResultItem) Ready() <-chan struct{} {
 	return item.isReady
 }
 
